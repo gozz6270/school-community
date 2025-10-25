@@ -5,7 +5,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from config.settings import PAGE_CONFIG
-from utils.auth import require_login, get_current_user, logout
+from utils.auth import require_login, get_current_user
 from utils.styles import hide_sidebar
 from utils.supabase_client import get_supabase_client
 from utils.dialogs import show_success, show_error

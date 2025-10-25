@@ -5,7 +5,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from config.settings import PAGE_CONFIG
-from utils.auth import require_login, get_current_user, logout, logout_user
+from utils.auth import require_login, get_current_user, logout_user
 from utils.dialogs import delete_confirm_dialog
 from utils.styles import hide_sidebar
 from utils.supabase_client import get_supabase_client
@@ -40,7 +40,6 @@ def render_header(has_schools=False):
             logout_user()
             st.query_params.clear()
             st.switch_page("pages/1_login.py")
-            st.stop()
         elif action == "schools":
             st.query_params.clear()
             st.switch_page("pages/4_add_school.py")
