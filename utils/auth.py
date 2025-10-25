@@ -11,7 +11,7 @@ from utils.supabase_client import get_supabase_client
 
 def init_auth():
     """
-    세션 상태 초기화 및 Supabase 세션 복원
+    세션 상태 초기화 (Supabase 세션 복원 없음)
     """
     # 기본값 설정 (이미 있으면 건드리지 않음)
     if 'logged_in' not in st.session_state:
@@ -22,28 +22,6 @@ def init_auth():
         st.session_state.access_token = None
     if 'user_data' not in st.session_state:
         st.session_state.user_data = None
-    
-    # 이미 로그인되어 있으면 Supabase 세션 복원 건너뛰기
-    if st.session_state.logged_in:
-        return
-    
-    # Supabase 세션 복원 시도 (로그인되지 않은 경우에만)
-    try:
-        supabase = get_supabase_client()
-        session = supabase.auth.get_session()
-        
-        if session and session.user:
-            # Supabase 세션이 있으면 st.session_state 복원
-            user_response = supabase.table("users").select("*").eq("email", session.user.email).execute()
-            
-            if user_response.data and len(user_response.data) > 0:
-                st.session_state.logged_in = True
-                st.session_state.user = session.user
-                st.session_state.access_token = session.access_token
-                st.session_state.user_data = user_response.data[0]
-    except Exception:
-        # 세션 복원 실패 시 기본값 유지
-        pass
 
 
 def login(email: str, password: str) -> bool:

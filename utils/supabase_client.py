@@ -45,7 +45,16 @@ def get_supabase_client() -> Client:
             )
         
         try:
-            st.session_state.supabase_client = create_client(url, key)
+            # persistSession을 False로 설정하여 localStorage 사용 안 함
+            # 각 세션이 완전히 독립적으로 작동하도록 함
+            from supabase.lib.client_options import ClientOptions
+            
+            options = ClientOptions(
+                auto_refresh_token=False,
+                persist_session=False
+            )
+            
+            st.session_state.supabase_client = create_client(url, key, options)
         except Exception as e:
             raise Exception(f"Supabase 클라이언트 생성 실패: {str(e)}")
     
