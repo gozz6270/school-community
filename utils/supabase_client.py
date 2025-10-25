@@ -50,13 +50,13 @@ def get_supabase_client() -> Client:
             )
         
         try:
-            # persistSession을 False로 설정하여 localStorage 사용 안 함
-            # 각 세션이 완전히 독립적으로 작동하도록 함
+            # persistSession을 True로 설정하여 localStorage 사용
+            # 각 브라우저가 독립적인 클라이언트를 가지므로 세션 분리는 유지됨
             from supabase.lib.client_options import ClientOptions
             
             options = ClientOptions(
-                auto_refresh_token=False,
-                persist_session=False
+                auto_refresh_token=True,
+                persist_session=True  # localStorage 사용하여 페이지 이동 시에도 세션 유지
             )
             
             st.session_state.supabase_client = create_client(url, key, options)
