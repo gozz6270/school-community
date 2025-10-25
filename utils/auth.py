@@ -1,24 +1,39 @@
 """
 인증 관련 함수
 Supabase Auth 기반 로그인, 로그아웃, 세션 관리
+사용자별 세션 분리 및 보안 강화
 """
 
 import streamlit as st
+import uuid
+import hashlib
 from typing import Optional, Dict, Any
-from utils.supabase_client import get_supabase_client
+from utils.supabase_client import get_supabase_client, cleanup_session_clients
 
 
 def init_session_state():
     """
     Streamlit session_state 초기화 및 Supabase 세션 복원
     
-    앱 시작 시 Supabase의 저장된 세션을 확인하여 자동 로그인합니다.
+    각 사용자 세션마다 고유한 세션 ID를 생성하고, Supabase의 저장된 세션을 확인하여 자동 로그인합니다.
     (페이지 새로고침해도 로그인 유지!)
     
     Example:
         >>> init_session_state()
         >>> print(st.session_state.logged_in)  # True or False
     """
+    # 고유한 세션 ID 생성 (브라우저별 세션 분리)
+    if "session_id" not in st.session_state:
+        # 브라우저 정보와 타임스탬프를 조합하여 고유 ID 생성
+        browser_info = st.session_state.get("_browser_info", str(uuid.uuid4()))
+        session_id = hashlib.md5(f"{browser_info}_{uuid.uuid4()}".encode()).hexdigest()[:16]
+        st.session_state.session_id = session_id
+    
+    # 세션 시작 시간 기록 (타임아웃 체크용)
+    if "session_start_time" not in st.session_state:
+        import time
+        st.session_state.session_start_time = time.time()
+    
     # 기본 세션 상태 초기화
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
@@ -155,9 +170,9 @@ def login_user(email: str, password: str) -> tuple[bool, str]:
 
 def logout_user():
     """
-    Supabase Auth 로그아웃
+    Supabase Auth 로그아웃 및 세션 정리
     
-    Supabase 세션을 종료하고 session_state를 초기화합니다.
+    Supabase 세션을 종료하고 session_state를 초기화하며, 세션별 클라이언트도 정리합니다.
     
     Example:
         >>> logout_user()
@@ -174,6 +189,9 @@ def logout_user():
     st.session_state.user = None
     st.session_state.access_token = None
     st.session_state.user_data = None
+    
+    # 세션별 Supabase 클라이언트 정리
+    cleanup_session_clients()
 
 
 def get_current_user() -> Optional[Dict[str, Any]]:
@@ -224,4 +242,72 @@ def require_login():
         st.warning("⚠️ 로그인이 필요한 페이지입니다.")
         st.info("로그인 페이지로 이동합니다...")
         st.switch_page("pages/1_login.py")
+
+
+def validate_session():
+    """
+    현재 세션의 유효성을 검증
+    
+    세션 하이재킹이나 세션 공유를 방지하기 위해 세션을 주기적으로 검증합니다.
+    
+    Returns:
+        bool: 세션이 유효한 경우 True, 그렇지 않으면 False
+    """
+    if not is_logged_in():
+        return False
+    
+    try:
+        supabase = get_supabase_client()
+        session = supabase.auth.get_session()
+        
+        # 세션이 존재하고 유효한지 확인
+        if not session or not session.user:
+            logout_user()
+            return False
+        
+        # 사용자 정보가 일치하는지 확인
+        current_user = get_current_user()
+        if not current_user or current_user.get('email') != session.user.email:
+            logout_user()
+            return False
+        
+        return True
+    except Exception:
+        logout_user()
+        return False
+
+
+def check_session_timeout(timeout_hours: float = 24.0) -> bool:
+    """
+    세션 타임아웃 체크
+    
+    Args:
+        timeout_hours: 타임아웃 시간 (시간 단위, 기본값: 24시간)
+    
+    Returns:
+        bool: 세션이 유효한 경우 True, 타임아웃된 경우 False
+    """
+    if "session_start_time" not in st.session_state:
+        return False
+    
+    import time
+    current_time = time.time()
+    session_duration = current_time - st.session_state.session_start_time
+    timeout_seconds = timeout_hours * 3600
+    
+    if session_duration > timeout_seconds:
+        logout_user()
+        return False
+    
+    return True
+
+
+def refresh_session():
+    """
+    세션 갱신 (활동 시간 업데이트)
+    
+    사용자가 활동할 때마다 호출하여 세션을 갱신합니다.
+    """
+    import time
+    st.session_state.session_start_time = time.time()
 
