@@ -6,7 +6,7 @@
 import streamlit as st
 from datetime import datetime, timezone
 from config.settings import PAGE_CONFIG, POST_CATEGORIES
-from utils.auth import require_login, logout_user, get_current_user
+from utils.auth import require_login, logout_user, get_current_user, validate_session
 from utils.supabase_client import get_supabase_client
 from utils.styles import hide_sidebar
 
@@ -1245,6 +1245,11 @@ def main():
     
     # 로그인 확인 (미로그인 시 자동 리다이렉트)
     require_login()
+    
+    # 세션 유효성 검증 (보안 강화)
+    if not validate_session():
+        st.error("세션이 유효하지 않습니다. 다시 로그인해주세요.")
+        st.stop()
     
     # 쿼리 파라미터 확인
     query_params = st.query_params
