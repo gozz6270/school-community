@@ -5,7 +5,7 @@
 
 import streamlit as st
 import time
-from utils.auth import init_session_state, is_logged_in, login_user
+from utils.auth import is_logged_in, login_user
 from utils.dialogs import show_error, show_success
 from utils.supabase_client import get_supabase_client
 from utils.styles import hide_sidebar
@@ -19,9 +19,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
-
-# 세션 초기화
-init_session_state()
 
 # 이미 로그인한 경우 홈으로 리다이렉트
 if is_logged_in():

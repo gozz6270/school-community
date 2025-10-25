@@ -6,7 +6,7 @@ Figma 디자인: https://www.figma.com/design/HHDev1QHqPB31yP9lENPD9/%EC%BA%A0%E
 import streamlit as st
 import re
 from utils.supabase_client import get_supabase_client
-from utils.auth import require_login, get_current_user, logout_user, validate_session
+from utils.auth import require_login, get_current_user, logout_user
 from utils.styles import hide_sidebar
 from utils.dialogs import show_error, show_success
 
@@ -428,11 +428,6 @@ def main() -> None:
         st.switch_page("pages/1_login.py")
     
     require_login()
-    
-    # 세션 유효성 검증 (보안 강화)
-    if not validate_session():
-        st.error("세션이 유효하지 않습니다. 다시 로그인해주세요.")
-        st.stop()
     
     # 헤더 렌더링
     render_header()

@@ -5,7 +5,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from config.settings import PAGE_CONFIG
-from utils.auth import require_login, get_current_user, logout_user, validate_session
+from utils.auth import require_login, get_current_user, logout_user
 from utils.dialogs import delete_confirm_dialog
 from utils.styles import hide_sidebar
 from utils.supabase_client import get_supabase_client
@@ -414,11 +414,6 @@ def main():
     
     # 로그인 확인 (미로그인 시 자동 리다이렉트)
     require_login()
-    
-    # 세션 유효성 검증 (보안 강화)
-    if not validate_session():
-        st.error("세션이 유효하지 않습니다. 다시 로그인해주세요.")
-        st.stop()
     
     # 헤더 렌더링 (학교가 있다고 가정)
     render_header(has_schools=True)
