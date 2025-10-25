@@ -104,6 +104,10 @@ def logout():
     st.session_state.user = None
     st.session_state.access_token = None
     st.session_state.user_data = None
+    
+    # Supabase 클라이언트도 삭제 (다음 로그인 시 새로 생성됨)
+    if 'supabase_client' in st.session_state:
+        del st.session_state.supabase_client
 
 
 def require_login():
