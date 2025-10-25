@@ -23,6 +23,7 @@ st.set_page_config(
 # 이미 로그인한 경우 홈으로 리다이렉트
 if is_logged_in():
     st.switch_page("pages/3_home.py")
+    st.stop()
 
 # ============================================
 # CSS 스타일 (Figma 디자인 기준) - 사이드바 숨김 포함
@@ -393,7 +394,8 @@ st.markdown("""
 
 # 회원가입 버튼 클릭
 if signup_button:
-                st.switch_page("pages/2_signup.py")
+    st.switch_page("pages/2_signup.py")
+    st.stop()
         
 # 로그인 버튼 클릭
 if login_button:
@@ -408,6 +410,7 @@ if login_button:
             if success:
                 # 로그인 성공 - 바로 홈 화면으로 이동
                 st.switch_page("pages/3_home.py")
+                st.stop()
             else:
                 # 로그인 실패
                 show_error("이메일 또는 비밀번호가 올바르지 않습니다.")

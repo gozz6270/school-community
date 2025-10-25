@@ -6,7 +6,7 @@ Figma 디자인: https://www.figma.com/design/HHDev1QHqPB31yP9lENPD9/%EC%BA%A0%E
 import streamlit as st
 from config.settings import PAGE_CONFIG
 from utils.styles import hide_sidebar
-from utils.auth import require_login, get_current_user, logout_user
+from utils.auth import require_login, get_current_user, logout
 from utils.supabase_client import get_supabase_client
 from utils.dialogs import show_warning
 
@@ -37,6 +37,7 @@ def render_header(has_schools=False):
             logout_user()
             st.query_params.clear()
             st.switch_page("pages/1_login.py")
+            st.stop()
         elif action == "home":
             st.query_params.clear()
             st.switch_page("pages/3_home.py")

@@ -1,7 +1,7 @@
 """
 인증 관련 함수
-Supabase Auth 기반 로그인, 로그아웃, 세션 관리
-Supabase 세션만으로 로그인 상태 관리
+Streamlit session_state 기반 로그인 관리
+브라우저별 독립적인 세션 보장
 """
 
 import streamlit as st
@@ -9,81 +9,53 @@ from typing import Optional, Dict, Any
 from utils.supabase_client import get_supabase_client
 
 
-def is_logged_in() -> bool:
+def init_auth():
     """
-    현재 로그인 상태 확인 (캐싱 + Supabase 세션 기반)
-    
-    Returns:
-        bool: 로그인 여부 (True: 로그인됨, False: 비로그인)
+    세션 상태 초기화 및 Supabase 세션 복원
     """
-    # 먼저 캐시된 상태 확인
-    cached_logged_in = st.session_state.get("cached_logged_in")
-    if cached_logged_in is not None:
-        print(f"DEBUG: 캐시된 로그인 상태 - {cached_logged_in}")
-        return cached_logged_in
+    # 기본값 설정 (이미 있으면 건드리지 않음)
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+    if 'user' not in st.session_state:
+        st.session_state.user = None
+    if 'access_token' not in st.session_state:
+        st.session_state.access_token = None
+    if 'user_data' not in st.session_state:
+        st.session_state.user_data = None
     
+    # 이미 로그인되어 있으면 Supabase 세션 복원 건너뛰기
+    if st.session_state.logged_in:
+        return
+    
+    # Supabase 세션 복원 시도 (로그인되지 않은 경우에만)
     try:
         supabase = get_supabase_client()
         session = supabase.auth.get_session()
         
-        # 디버깅을 위한 로그
-        print(f"DEBUG: 세션 확인 - session: {session}")
-        if session:
-            print(f"DEBUG: 세션 사용자 - user: {session.user}")
-            if session.user:
-                print(f"DEBUG: 사용자 이메일 - email: {session.user.email}")
-        
-        is_logged = session and session.user is not None
-        print(f"DEBUG: 로그인 상태 - is_logged: {is_logged}")
-        
-        # 결과를 캐시에 저장
-        st.session_state.cached_logged_in = is_logged
-        
-        return is_logged
-    except Exception as e:
-        print(f"DEBUG: 세션 확인 오류 - {str(e)}")
-        # 오류 시 캐시된 상태가 있으면 사용
-        return st.session_state.get("cached_logged_in", False)
-
-
-def get_current_user() -> Optional[Dict[str, Any]]:
-    """
-    현재 로그인한 사용자 정보 반환 (Supabase 세션 기반)
-    
-    Returns:
-        dict or None: 로그인된 경우 사용자 정보, 비로그인 시 None
-    """
-    try:
-        supabase = get_supabase_client()
-        session = supabase.auth.get_session()
-        
-        if not session or not session.user:
-            return None
-        
-        # users 테이블에서 정보 조회
-        user_email = session.user.email
-        user_response = supabase.table("users").select("*").eq("email", user_email).execute()
-        
-        if user_response.data and len(user_response.data) > 0:
-            return user_response.data[0]
-        
-        return None
+        if session and session.user:
+            # Supabase 세션이 있으면 st.session_state 복원
+            user_response = supabase.table("users").select("*").eq("email", session.user.email).execute()
+            
+            if user_response.data and len(user_response.data) > 0:
+                st.session_state.logged_in = True
+                st.session_state.user = session.user
+                st.session_state.access_token = session.access_token
+                st.session_state.user_data = user_response.data[0]
     except Exception:
-        return None
+        # 세션 복원 실패 시 기본값 유지
+        pass
 
 
-def login_user(email: str, password: str) -> tuple[bool, str]:
+def login(email: str, password: str) -> bool:
     """
-    Supabase Auth 인증
+    로그인 처리
     
     Args:
         email: 이메일 (로그인 ID로 사용)
         password: 비밀번호
     
     Returns:
-        tuple: (성공 여부, 메시지)
-            - (True, "로그인 성공"): 로그인 성공
-            - (False, "에러 메시지"): 로그인 실패
+        bool: 로그인 성공 여부
     """
     try:
         supabase = get_supabase_client()
@@ -95,42 +67,31 @@ def login_user(email: str, password: str) -> tuple[bool, str]:
         })
         
         if not auth_response.user:
-            return False, "로그인 실패"
+            return False
         
         # users 테이블에서 추가 정보 조회
         user_response = supabase.table("users").select("*").eq("email", email).execute()
         
         if not user_response.data or len(user_response.data) == 0:
-            return False, "사용자 정보를 찾을 수 없습니다."
+            return False
         
-        # 로그인 성공 시 캐시 업데이트
-        st.session_state.cached_logged_in = True
-        print("DEBUG: 로그인 성공 - 캐시 업데이트됨")
+        user_data = user_response.data[0]
         
-        return True, "로그인 성공"
+        # session_state에 로그인 정보 저장 (이 브라우저 세션에만 저장됨)
+        st.session_state.logged_in = True
+        st.session_state.user = auth_response.user
+        st.session_state.access_token = auth_response.session.access_token
+        st.session_state.user_data = user_data
+        
+        return True
     
-    except Exception as e:
-        error_msg = str(e).lower()
-        
-        # 에러 메시지 분석
-        if "invalid" in error_msg or "credentials" in error_msg:
-            return False, "이메일 또는 비밀번호가 올바르지 않습니다."
-        elif "email not confirmed" in error_msg:
-            return False, "이메일 인증이 필요합니다."
-        elif "network" in error_msg or "connection" in error_msg:
-            return False, "네트워크 오류입니다. 다시 시도해주세요."
-        else:
-            return False, f"로그인 오류: {str(e)}"
+    except Exception:
+        return False
 
 
-# signup_user 함수는 회원가입 페이지에서 직접 처리하므로 제거
-
-
-def logout_user():
+def logout():
     """
-    Supabase Auth 로그아웃
-    
-    Supabase 세션을 종료하고 캐시를 초기화합니다.
+    로그아웃 처리
     """
     try:
         supabase = get_supabase_client()
@@ -138,19 +99,59 @@ def logout_user():
     except Exception:
         pass
     
-    # 캐시 초기화
-    st.session_state.cached_logged_in = False
-    print("DEBUG: 로그아웃 - 캐시 초기화됨")
+    # session_state 초기화 (이 브라우저 세션에만 적용)
+    st.session_state.logged_in = False
+    st.session_state.user = None
+    st.session_state.access_token = None
+    st.session_state.user_data = None
 
 
 def require_login():
     """
-    로그인이 필요한 페이지에서 사용 (Supabase 세션 기반)
-    
-    비로그인 상태인 경우 로그인 페이지로 리다이렉트합니다.
+    로그인이 필요한 페이지에서 사용
     """
-    if not is_logged_in():
+    # 세션 상태 초기화 먼저
+    init_auth()
+    
+    if not st.session_state.logged_in:
         st.warning("⚠️ 로그인이 필요한 페이지입니다.")
         st.info("로그인 페이지로 이동합니다...")
         st.switch_page("pages/1_login.py")
+        st.stop()
+
+
+def get_current_user() -> Optional[Dict[str, Any]]:
+    """
+    현재 로그인한 사용자 정보 반환
+    """
+    # 세션 상태 초기화 먼저
+    init_auth()
+    
+    if not st.session_state.logged_in:
+        return None
+    
+    return st.session_state.get('user_data')
+
+
+# 기존 함수들과의 호환성을 위한 별칭
+def is_logged_in() -> bool:
+    """기존 코드와의 호환성을 위한 함수"""
+    # 세션 상태 초기화 먼저
+    init_auth()
+    
+    return st.session_state.get('logged_in', False)
+
+
+def login_user(email: str, password: str) -> tuple[bool, str]:
+    """기존 코드와의 호환성을 위한 함수"""
+    success = login(email, password)
+    if success:
+        return True, "로그인 성공"
+    else:
+        return False, "이메일 또는 비밀번호가 올바르지 않습니다."
+
+
+def logout_user():
+    """기존 코드와의 호환성을 위한 함수"""
+    logout()
 

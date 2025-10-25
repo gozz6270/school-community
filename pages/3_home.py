@@ -6,7 +6,7 @@
 import streamlit as st
 from datetime import datetime, timezone
 from config.settings import PAGE_CONFIG, POST_CATEGORIES
-from utils.auth import require_login, logout_user, get_current_user
+from utils.auth import require_login, logout, get_current_user
 from utils.supabase_client import get_supabase_client
 from utils.styles import hide_sidebar
 
@@ -132,6 +132,7 @@ def render_header(has_schools=False):
             logout_user()
             st.query_params.clear()
             st.switch_page("pages/1_login.py")
+            st.stop()
         elif action == "schools":
             st.query_params.clear()
             st.switch_page("pages/4_add_school.py")
@@ -1243,7 +1244,7 @@ def render_with_schools_screen():
 def main():
     """홈 페이지 메인 함수"""
     
-    # 로그인 확인 (미로그인 시 자동 리다이렉트)
+    # 로그인 체크 - 이게 전부!
     require_login()
     
     # 쿼리 파라미터 확인
