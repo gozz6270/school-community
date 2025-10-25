@@ -6,7 +6,7 @@
 import streamlit as st
 from datetime import datetime, timezone
 from config.settings import PAGE_CONFIG, POST_CATEGORIES
-from utils.auth import require_login, logout, get_current_user
+from utils.auth import require_login, logout, get_current_user, logout_user
 from utils.supabase_client import get_supabase_client
 from utils.styles import hide_sidebar
 

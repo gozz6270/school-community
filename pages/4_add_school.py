@@ -6,7 +6,7 @@ Figma 디자인: https://www.figma.com/design/HHDev1QHqPB31yP9lENPD9/%EC%BA%A0%E
 import streamlit as st
 from config.settings import PAGE_CONFIG
 from utils.styles import hide_sidebar
-from utils.auth import require_login, get_current_user, logout
+from utils.auth import require_login, get_current_user, logout, logout_user
 from utils.supabase_client import get_supabase_client
 from utils.dialogs import show_warning
 
