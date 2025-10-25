@@ -32,16 +32,21 @@ def get_supabase_client() -> Client:
     """
     # st.session_state에 클라이언트가 없으면 생성
     if 'supabase_client' not in st.session_state:
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        # Streamlit Cloud의 secrets 또는 환경 변수에서 가져오기
+        try:
+            url = st.secrets["SUPABASE_URL"]
+            key = st.secrets["SUPABASE_KEY"]
+        except (KeyError, FileNotFoundError):
+            # secrets가 없으면 환경 변수에서 가져오기
+            url = os.getenv("SUPABASE_URL")
+            key = os.getenv("SUPABASE_KEY")
         
         # 환경변수 검증
         if not url or not key:
             raise ValueError(
                 "Supabase URL 또는 KEY가 설정되지 않았습니다.\n"
-                ".env 파일을 확인하세요:\n"
-                "  SUPABASE_URL=your_supabase_url\n"
-                "  SUPABASE_KEY=your_supabase_key"
+                "로컬: .env 파일을 확인하세요\n"
+                "Streamlit Cloud: Secrets에서 SUPABASE_URL과 SUPABASE_KEY를 설정하세요"
             )
         
         try:

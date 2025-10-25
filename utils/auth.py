@@ -11,7 +11,7 @@ from utils.supabase_client import get_supabase_client
 
 def init_auth():
     """
-    세션 상태 초기화 (Supabase 세션 복원 없음)
+    세션 상태 초기화 및 Supabase 세션 복원
     """
     # 기본값 설정 (이미 있으면 건드리지 않음)
     if 'logged_in' not in st.session_state:
@@ -20,8 +20,29 @@ def init_auth():
         st.session_state.user = None
     if 'access_token' not in st.session_state:
         st.session_state.access_token = None
+    if 'refresh_token' not in st.session_state:
+        st.session_state.refresh_token = None
     if 'user_data' not in st.session_state:
         st.session_state.user_data = None
+    
+    # 로그인되어 있고 access_token이 있으면 Supabase 세션 복원
+    if st.session_state.logged_in and st.session_state.access_token:
+        try:
+            supabase = get_supabase_client()
+            # 저장된 세션을 Supabase 클라이언트에 수동으로 설정
+            supabase.auth.set_session(
+                st.session_state.access_token,
+                st.session_state.refresh_token
+            )
+        except Exception as e:
+            # 세션 복원 실패 시 로그아웃 처리
+            import sys
+            print(f"세션 복원 실패: {str(e)}", file=sys.stderr)
+            st.session_state.logged_in = False
+            st.session_state.user = None
+            st.session_state.access_token = None
+            st.session_state.refresh_token = None
+            st.session_state.user_data = None
 
 
 def login(email: str, password: str) -> bool:
@@ -59,11 +80,14 @@ def login(email: str, password: str) -> bool:
         st.session_state.logged_in = True
         st.session_state.user = auth_response.user
         st.session_state.access_token = auth_response.session.access_token
+        st.session_state.refresh_token = auth_response.session.refresh_token
         st.session_state.user_data = user_data
         
         return True
     
-    except Exception:
+    except Exception as e:
+        import sys
+        print(f"로그인 실패: {str(e)}", file=sys.stderr)
         return False
 
 
@@ -81,6 +105,7 @@ def logout():
     st.session_state.logged_in = False
     st.session_state.user = None
     st.session_state.access_token = None
+    st.session_state.refresh_token = None
     st.session_state.user_data = None
     
     # Supabase 클라이언트도 삭제 (다음 로그인 시 새로 생성됨)
