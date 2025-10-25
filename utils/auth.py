@@ -10,16 +10,8 @@ from utils.supabase_client import get_supabase_client
 
 def init_session_state():
     """
-    Streamlit session_state 초기화 및 Supabase 세션 복원
-    
-    앱 시작 시 Supabase의 저장된 세션을 확인하여 자동 로그인합니다.
-    (페이지 새로고침해도 로그인 유지!)
-    
-    Example:
-        >>> init_session_state()
-        >>> print(st.session_state.logged_in)  # True or False
+    Streamlit session_state 초기화 + 세션 복원
     """
-    # 기본 세션 상태 초기화
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
     
@@ -32,60 +24,32 @@ def init_session_state():
     if "user_data" not in st.session_state:
         st.session_state.user_data = None
     
-    # Supabase 세션 복원 시도 (새로고침 시 자동 로그인)
-    try:
-        supabase = get_supabase_client()
-        session = supabase.auth.get_session()
-        
-        if session and session.user:
-            # users 테이블에서 정보 조회 - 탈퇴한 사용자 체크
-            user_email = session.user.email
-            user_response = supabase.table("users").select("*").eq("email", user_email).execute()
+    # 🔥 핵심: 새로고침 시 Supabase 세션이 살아있으면 복원
+    if not st.session_state.logged_in:
+        try:
+            supabase = get_supabase_client()
+            session = supabase.auth.get_session()
             
-            # users 테이블에 사용자가 없으면 (탈퇴한 경우) 로그아웃 처리
-            if not user_response.data or len(user_response.data) == 0:
-                supabase.auth.sign_out()
-                st.session_state.logged_in = False
-                st.session_state.user = None
-                st.session_state.access_token = None
-                st.session_state.user_data = None
-            else:
-                # Auth 세션 복원
-                st.session_state.logged_in = True
-                st.session_state.user = session.user
-                st.session_state.access_token = session.access_token
-                st.session_state.user_data = user_response.data[0]
-    except Exception:
-        # 세션 복원 실패 시 로그아웃 상태 유지
-        pass
+            if session and session.user:
+                # users 테이블에서 정보 조회
+                user_response = supabase.table("users").select("*").eq("email", session.user.email).execute()
+                
+                if user_response.data and len(user_response.data) > 0:
+                    # 세션 복원
+                    st.session_state.logged_in = True
+                    st.session_state.user = session.user
+                    st.session_state.access_token = session.access_token
+                    st.session_state.user_data = user_response.data[0]
+        except Exception:
+            pass
 
 
 def is_logged_in() -> bool:
     """
     현재 로그인 상태 확인
-    
-    Returns:
-        bool: 로그인 여부 (True: 로그인됨, False: 비로그인)
-        
-    Example:
-        >>> if is_logged_in():
-        ...     st.write("환영합니다!")
-        ... else:
-        ...     st.write("로그인이 필요합니다.")
     """
     init_session_state()
-    
-    # session_state 확인
-    if not st.session_state.get("logged_in", False):
-        return False
-    
-    # Supabase 세션 유효성 재확인
-    try:
-        supabase = get_supabase_client()
-        session = supabase.auth.get_session()
-        return session and session.user is not None
-    except Exception:
-        return False
+    return st.session_state.get("logged_in", False)
 
 
 def login_user(email: str, password: str) -> tuple[bool, str]:
